@@ -554,23 +554,31 @@
       }
     });
 
-    const htmlBody = buildEmailHTML(rows, notes, dateStr);
-    const subject = `🍷 Bestelling Wijnbar SWAF — ${dateStr}`;
-
-    // ── Send via EmailJS ──
-    // Replace these with your EmailJS credentials:
-    const EMAILJS_SERVICE_ID  = 'service_abuzi9h';
-    const EMAILJS_TEMPLATE_ID = 'template_0kxuvjq';
-    const EMAILJS_PUBLIC_KEY  = 'm06Tg74fq1z2aATjU';
+    // Group rows by category for Notion
+    const categories = {};
+    let currentCategory = 'Overige';
+    rows.forEach(r => {
+      if (r.isDivider) { currentCategory = r.label; }
+      else {
+        if (!categories[currentCategory]) categories[currentCategory] = [];
+        if (r.qty && r.qty !== '0') {
+          categories[currentCategory].push(`${r.product}: ${r.qty} × ${r.unit}`);
+        }
+      }
+    });
 
     try {
-      await emailjs.init(EMAILJS_PUBLIC_KEY);
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-        to_email: 'henrieke@consumerhouse.be,wijnbarswaf@gmail.com,dirk@consumerhouse.be',
-        subject: subject,
-        html_body: htmlBody,
-        date: dateStr
+      const response = await fetch('/api/submit-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: dateStr,
+          notes: notes,
+          categories: categories
+        })
       });
+
+      if (!response.ok) throw new Error('Server error');
 
       // Show success
       document.getElementById('overlayTime').textContent = dateStr;
@@ -602,6 +610,6 @@
   }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 </body>
 </html>
